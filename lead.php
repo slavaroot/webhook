@@ -114,7 +114,8 @@
 		} else {
 			writeLog("Lead found");
 
-			writeLog("Move lead ".$result);
+			//TODO поределить $result для лога или удалить
+//			writeLog("Move lead ".$result);
 
 			//обновляем лида
 			$queryUrl = 'https://a-nevski.bitrix24.ru/rest/1/1o88wyq5m0yizz68/crm.lead.update.json';

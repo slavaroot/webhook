@@ -109,12 +109,12 @@
 			print $result;
 			$json = json_decode($result);
 			writeLog("Lead created ".$result);
-			$result = startTrigger("https://a-nevski.bitrix24.ru/rest/1/yjonnh47ijv34jjh/crm.automation.trigger/?target=LEAD_".$json->result."&code=oncpa");
+			$result = startTrigger("https://a-nevski.bitrix24.ru/rest/1/yjonnh47ijv34jjh/crm.automation.trigger/?target=LEAD_".$json->result[0]->ID."&code=oncpa");
 			writeLog("Move lead ".$result);
 		} else {
 			writeLog("Lead found");
 
-			//TODO поределить $result для лога или удалить
+			//TODO определить $result для лога или удалить
 //			writeLog("Move lead ".$result);
 
 			//обновляем лида
@@ -139,6 +139,10 @@
 
 			if (isset($request["rtype"]))
 				$userParameters["UF_CRM_1553250302"] = $request["rtype"];
+
+			if (isset($request['IDWEB'])) {
+			    $userParameters['IDWEB'] = $request['IDWEB'];
+            }
 
 			if (isset($promocode))
 				$userParameters["UF_CRM_1559231074"] = $promocode;
@@ -432,6 +436,9 @@
 				}
                 if (isset($request["type"]))
 			        $userParameters["UF_CRM_TYPE"] = $request["type"];
+                if (isset($request['IDWEB'])) {
+                    $userParameters['IDWEB'] = $request['IDWEB'];
+                }
 				if (isset($request["Height"]))
 					$userParameters["UF_CRM_5B16C0A186F1B"] = $request["Height"];
 				if (isset($request["Mass"]))
@@ -538,7 +545,10 @@
 		if (isset($request["Age"]))
 			$userParameters["UF_CRM_5B16C0A21AB47"] = $request["Age"];
 		if (isset($request["rtype"]))
-			$userParameters["UF_CRM_1553250302"] = $request["rtype"];
+                $userParameters["UF_CRM_1553250302"] = $request["rtype"];
+		if (isset($request['IDWEB'])) {
+		    $userParameters['IDWEB'] = $request['IDWEB'];
+        }
 		if (isset($promocode))
 			$userParameters["UF_CRM_1559231074"] = $promocode;
 

@@ -358,7 +358,8 @@ if (isset($request["tel"])) {
 
                 $userParameters["UF_CRM_5D67B01F896D7"] = $request["web_date"];
                 $userParameters["UF_CRM_5D67B01F49CD8"] = $request["web_link"];
-                $userParameters["UF_CRM_5D67B01D77970"] = $request["web_theme"];
+//                $userParameters["UF_CRM_5D67B01D77970"] = $request["web_theme"];
+                $userParameters["UF_CRM_5D67B01D77970"] = $request["IDWEB"];
 
                 $data = array(
                     'id' => $json->result[0]->ID,
@@ -431,8 +432,11 @@ if (isset($request["tel"])) {
             if (isset($request["Age"]))
                 $userParameters["UF_CRM_5B16C0A21AB47"] = $request["Age"];
 
-            if (isset($request["web_theme"]))
-                $userParameters["UF_CRM_1567072808032"] = $request["web_theme"];
+//            if (isset($request["web_theme"]))
+//                $userParameters["UF_CRM_1567072808032"] = $request["web_theme"];
+            if (isset($request['IDWEB'])) {
+                $userParameters['UF_CRM_1567072808032'] = $request['IDWEB'];
+            }
             if (isset($request["web_link"]))
                 $userParameters["UF_CRM_1567072855342"] = $request["web_link"];
             if (isset($request["web_date"]))
@@ -547,8 +551,11 @@ function createLead($name, $normalizedTel, $email, $systranid, $amount, $discoun
     if (isset($promocode))
         $userParameters["UF_CRM_1559231074"] = $promocode;
 
-    if (isset($request["web_theme"]))
-        $userParameters["UF_CRM_1567072808032"] = $request["web_theme"];
+//    if (isset($request["web_theme"]))
+//        $userParameters["UF_CRM_1567072808032"] = $request["web_theme"];
+    if (isset($request['IDWEB'])) {
+        $userParameters['UF_CRM_1567072808032'] = $request['IDWEB'];
+    }
     if (isset($request["web_link"]))
         $userParameters["UF_CRM_1567072855342"] = $request["web_link"];
     if (isset($request["web_date"]))

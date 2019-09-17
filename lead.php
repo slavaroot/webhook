@@ -104,6 +104,8 @@ if (isset($request["tel"])) {
         $json = json_decode($result);
         writeLog("Lead created " . $result);
         $result = startTrigger("https://a-nevski.bitrix24.ru/rest/1/yjonnh47ijv34jjh/crm.automation.trigger/?target=LEAD_" . $json->result[0]->ID . "&code=oncpa");
+
+        startBusinessProcess($json->result[0]->ID);
         writeLog("Move lead " . $result);
     } else {
         writeLog("Lead found");
@@ -168,6 +170,8 @@ if (isset($request["tel"])) {
         curl_close($curl);
         print $result;
         writeLog("Update order " . $result);
+
+        startBusinessProcess($json->result[0]->ID);
 
         $result = startTrigger("https://a-nevski.bitrix24.ru/rest/1/yjonnh47ijv34jjh/crm.automation.trigger/?target=LEAD_" . $json->result[0]->ID . "&code=oncpa");
     }
@@ -338,7 +342,7 @@ if (isset($request["tel"])) {
         //проверяем есть ли уже лид с таким телефоном
         $json = NULL;
 
-        if (isset($request["web_theme"])) {
+        if (isset($request["IDWEB"])) {
 
             if (!empty($normalizedTel)) {
                 writeLog("Searching contacts by phone $normalizedTel");
@@ -422,9 +426,9 @@ if (isset($request["tel"])) {
             }
             if (isset($request["type"]))
                 $userParameters["UF_CRM_TYPE"] = $request["type"];
-            if (isset($request['IDWEB'])) {
-                $userParameters['IDWEB'] = $request['IDWEB'];
-            }
+//            if (isset($request['IDWEB'])) {
+//                $userParameters['IDWEB'] = $request['IDWEB'];
+//            }
             if (isset($request["Height"]))
                 $userParameters["UF_CRM_5B16C0A186F1B"] = $request["Height"];
             if (isset($request["Mass"]))

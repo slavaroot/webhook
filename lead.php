@@ -604,7 +604,9 @@ function startBusinessProcess($leadId, $businessProcessId = 346)
 
     $url = 'https://a-nevski.bitrix24.ru/rest/1/1o88wyq5m0yizz68/bizproc.workflow.start';
 
-    sendRequest($url, $parameters);
+    $response = sendRequest($url, $parameters);
+    
+    writeLog('start business process response: ' . $response);
 }
 
 /**
@@ -623,9 +625,11 @@ function sendRequest($queryUrl, $parameters)
         CURLOPT_POSTFIELDS => $parameters,
     ));
 
-    curl_exec($curl);
+    $response = curl_exec($curl);
 
     curl_close($curl);
+    
+    return $response;
 }
 
 function normalizePhoneNumber($tel)

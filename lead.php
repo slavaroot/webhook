@@ -597,6 +597,8 @@ function createLead($name, $normalizedTel, $email, $systranid, $amount, $discoun
  */
 function startBusinessProcess($leadId, $businessProcessId = 346)
 {
+    writeLog('start business process lead: ' . $leadId);
+    
     $parameters = [
         'TEMPLATE_ID' => $businessProcessId,
         'DOCUMENT_ID' => ['crm', 'CCrmDocumentLead', $leadId],

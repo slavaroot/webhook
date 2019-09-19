@@ -103,9 +103,9 @@ if (isset($request["tel"])) {
         print $result;
         $json = json_decode($result);
         writeLog("Lead created " . $result);
-        $result = startTrigger("https://a-nevski.bitrix24.ru/rest/1/yjonnh47ijv34jjh/crm.automation.trigger/?target=LEAD_" . $json->result[0]->ID . "&code=oncpa");
+        $result = startTrigger("https://a-nevski.bitrix24.ru/rest/1/yjonnh47ijv34jjh/crm.automation.trigger/?target=LEAD_" . $json->result . "&code=oncpa");
 
-        startBusinessProcess($json->result[0]->ID);
+        startBusinessProcess($json->result);
         writeLog("Move lead " . $result);
     } else {
         writeLog("Lead found");
@@ -134,10 +134,11 @@ if (isset($request["tel"])) {
 
         if (isset($request["rtype"]))
             $userParameters["UF_CRM_1553250302"] = $request["rtype"];
-
+        
         if (isset($request['IDWEB'])) {
-            $userParameters['IDWEB'] = $request['IDWEB'];
+            $userParameters["UF_CRM_5D67B01D77970"] = $request["IDWEB"];
         }
+
 
         if (isset($promocode))
             $userParameters["UF_CRM_1559231074"] = $promocode;
@@ -399,7 +400,7 @@ if (isset($request["tel"])) {
         if (!empty($email) && (empty($normalizedTel) || $json->total == 0)) {
             writeLog("Searching by email $email");
             $json = findLeadByEmail($email);
-            if ($json->total > 0) {
+            if ($json->total) {
                 $leadID = $json->result[0]->ID;
                 startTrigger("https://a-nevski.bitrix24.ru/rest/1/yjonnh47ijv34jjh/crm.automation.trigger/?target=LEAD_$leadID&code=dCyTf");
             }
@@ -480,11 +481,10 @@ if (isset($request["tel"])) {
 
             $decodedResult = json_decode($result);
 
-            if (isset($decodedResult->result[0]->ID)) {
-                $leadID = $decodedResult->result[0]->ID;
+            if (isset($decodedResult->result)) {
+                startBusinessProcess($decodedResult->result);
             }
 
-            startBusinessProcess($leadID);
         }
     }
 }

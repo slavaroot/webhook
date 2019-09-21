@@ -442,10 +442,10 @@ if (isset($request["tel"])) {
             if (isset($request['IDWEB'])) {
                 $userParameters['UF_CRM_1567072808032'] = $request['IDWEB'];
             }
-            if (isset($request["web_link"]))
-                $userParameters["UF_CRM_1567072855342"] = $request["web_link"];
-            if (isset($request["web_date"]))
-                $userParameters["UF_CRM_1567073106"] = $request["web_date"];
+//            if (isset($request["web_link"]))
+//                $userParameters["UF_CRM_1567072855342"] = $request["web_link"];
+//            if (isset($request["web_date"]))
+//                $userParameters["UF_CRM_1567073106"] = $request["web_date"];
 
             $data = array(
                 'id' => $json->result[0]->ID,
@@ -560,10 +560,10 @@ function createLead($name, $normalizedTel, $email, $systranid, $amount, $discoun
     if (isset($request['IDWEB'])) {
         $userParameters['UF_CRM_1567072808032'] = $request['IDWEB'];
     }
-    if (isset($request["web_link"]))
-        $userParameters["UF_CRM_1567072855342"] = $request["web_link"];
-    if (isset($request["web_date"]))
-        $userParameters["UF_CRM_1567073106"] = $request["web_date"];
+//    if (isset($request["web_link"]))
+//        $userParameters["UF_CRM_1567072855342"] = $request["web_link"];
+//    if (isset($request["web_date"]))
+//        $userParameters["UF_CRM_1567073106"] = $request["web_date"];
 
     $queryData = http_build_query(array(
         'fields' => $userParameters
@@ -606,7 +606,7 @@ function startBusinessProcess($leadId, $businessProcessId = 346)
 
     $url = 'https://a-nevski.bitrix24.ru/rest/1/1o88wyq5m0yizz68/bizproc.workflow.start';
 
-    $response = sendRequest($url, $parameters);
+    $response = sendBusinessProcessRequest($url, $parameters);
     
     writeLog('start business process response: ' . $response);
 }
@@ -614,13 +614,15 @@ function startBusinessProcess($leadId, $businessProcessId = 346)
 /**
  * @param string $queryUrl
  * @param array $parameters
+ *
+ * @return string
  */
-function sendRequest($queryUrl, $parameters)
+function sendBusinessProcessRequest($queryUrl, $parameters)
 {
+    $parameters = http_build_query($parameters);
     $curl = curl_init();
     curl_setopt_array($curl, array(
         CURLOPT_SSL_VERIFYPEER => 0,
-        CURLOPT_POST => 1,
         CURLOPT_HEADER => 0,
         CURLOPT_RETURNTRANSFER => 1,
         CURLOPT_URL => $queryUrl,

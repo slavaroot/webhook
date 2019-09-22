@@ -625,7 +625,7 @@ function sendBusinessProcessRequest($queryUrl, $parameters)
         CURLOPT_SSL_VERIFYPEER => 0,
         CURLOPT_HEADER => 0,
         CURLOPT_RETURNTRANSFER => 1,
-        CURLOPT_URL => $queryUrl,
+        CURLOPT_URL => $queryUrl . '?' . $parameters,
         CURLOPT_POSTFIELDS => $parameters,
     ));
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Base class contain api methods for BitrixCRM and other common functions
+ * Base class contains api methods for BitrixCRM and other common functions
  */
 
 class Base

@@ -23,7 +23,178 @@ class Base
      */
     protected $businessProcessId;
 
-    //todo Refactor params
+    /**
+     * Updating contact in Bitrix24
+     * @param $result
+     * @param $request
+     * @return mixed
+     */
+    public function updateContact($result, $request){
+        $userParameters = array();
+        $userParameters["UF_CRM_5D67B01F896D7"] = $request["web_date"];
+        $userParameters["UF_CRM_5D67B01F49CD8"] = $request["web_link"];
+        $userParameters["UF_CRM_5D67B01D77970"] = $request["IDWEB"];
+        $data = array(
+            'id' => $result->result[0]->ID,
+            'fields' => $userParameters,
+            'params' => array("REGISTER_SONET_EVENT" => "Y"),
+        );
+        $parameters = http_build_query($data);
+
+        return $this->sendRequest('crm.contact.update.json', $parameters);
+    }
+
+    /**
+     * Updating deal in Bitrix24
+     * @param $deal
+     * @param $dAmount
+     * @param $request
+     * @return mixed
+     */
+    public function updateDeal(
+        $deal,
+        $dAmount,
+        $request
+    ){
+        $oldAmount = $deal->result->UF_CRM_1529156721;
+        $dealId = $request["deal_id"];
+        $tranId = $request["payment"]["systranid"];
+        $pay = $request["pay"];
+        $prolongation = $request["payment"]["products"][0]["options"][0]["variant"];
+
+        $data = array(
+            'id' => $dealId,
+            'fields' => array(
+                "UF_CRM_1529156721" => $oldAmount + $dAmount,
+                "UF_CRM_5C44C164E80CC" => $tranId,
+            ),
+            'params' => array("REGISTER_SONET_EVENT" => "Y"),
+        );
+
+        if (isset($promocode)) {
+            $data['fields']['UF_CRM_5CEFFABAC23ED'] = $promocode;
+        }
+        if ($pay == 'prolongation') {
+            if ($prolongation == "1 месяц")
+                $data['fields']['UF_CRM_1527763052'] = 470;
+            elseif ($prolongation == "2 месяца") {
+                $data['fields']['UF_CRM_1527763052'] = 472;
+            } elseif ($prolongation == "4 месяца") {
+                $data['fields']['UF_CRM_1527763052'] = 1440;
+            } else {
+                $data['fields']['UF_CRM_1527763052'] = '';
+            }
+        } else if ($pay == 'credit') {
+            $data['fields']['UF_CRM_1560926337'] = $request["num"];
+            $data['fields']['UF_CRM_1560925916'] = $request["fnum"];
+        }
+
+        $parameters = http_build_query($data);
+        return $this->sendRequest('crm.deal.update.json', $parameters);
+    }
+
+    /**
+     * Update lead if repeat exists
+     * @param $normalizedPhone
+     * @param $result
+     * @param $request
+     * @return mixed
+     */
+    public function updateLeadForRepeat(
+        $normalizedPhone,
+        $result,
+        $request
+    ){
+        $userParameters = array();
+        if (!empty($normalizedPhone) && !empty($email)) {
+            $userParameters["PHONE"] = array(array("VALUE" => $normalizedPhone, "VALUE_TYPE" => "WORK"));
+            $userParameters["EMAIL"] = array(array("VALUE" => $email, "VALUE_TYPE" => "WORK"));
+        }
+        if (isset($request["type"]))
+            $userParameters["UF_CRM_TYPE"] = $request["type"];
+        if (isset($request["Height"]))
+            $userParameters["UF_CRM_5B16C0A186F1B"] = $request["Height"];
+        if (isset($request["Mass"]))
+            $userParameters["UF_CRM_5B16C0A192A33"] = $request["Mass"];
+        if (isset($request["Age"]))
+            $userParameters["UF_CRM_5B16C0A21AB47"] = $request["Age"];
+        if (isset($request['IDWEB'])) {
+            $userParameters['UF_CRM_1567072808032'] = $request['IDWEB'];
+        }
+
+        $data = array(
+            'id' => $result->result[0]->ID,
+            'fields' => $userParameters,
+            'params' => array("REGISTER_SONET_EVENT" => "Y"),
+        );
+        $parameters = http_build_query($data);
+
+        return $this->sendRequest('crm.lead.update.json', $parameters);
+    }
+
+    /**
+     * Update lead in Bitrix24
+     * @param $result
+     * @param $discount
+     * @param $email
+     * @param $promoCode
+     * @param $request
+     * @return bool|string
+     */
+    public function updateLead(
+        $result,
+        $discount,
+        $email,
+        $promoCode,
+        $request
+    ){
+        $amount = $request["payment"]["products"][0]["amount"];
+
+        if ((bool)$promoCode) {
+            $dAmount = $amount * $discount;
+        } else {
+            $dAmount = $amount - $discount;
+            $dAmount = max(0, $dAmount);
+        }
+
+        $userParameters = array(
+            "UF_CRM_1547493000073" => $request["payment"]["systranid"],
+            "UF_CRM_1547492931256" => $dAmount,
+        );
+
+        if (isset($request["rtype"]))
+            $userParameters["UF_CRM_1553250302"] = $request["rtype"];
+        if (isset($request['IDWEB']))
+            $userParameters["UF_CRM_5D67B01D77970"] = $request["IDWEB"];
+        if (isset($this->promoCode))
+            $userParameters["UF_CRM_1559231074"] = $this->promoCode;
+        if (!empty($normalizedPhone) && !empty($email)) {
+            $userParameters["EMAIL"] = array(array("VALUE" => $email, "VALUE_TYPE" => "WORK"));
+        }
+
+        $data = array(
+            'id' => $result->result[0]->ID,
+            'fields' => $userParameters,
+            'params' => array("REGISTER_SONET_EVENT" => "Y"),
+        );
+        $parameters = http_build_query($data);
+
+        return $this->sendRequest('crm.lead.update.json', $parameters);
+    }
+
+    /**
+     * Creating lead in Bitrix24
+     * @param $name
+     * @param $normalizedPhone
+     * @param $email
+     * @param $systranid
+     * @param $amount
+     * @param $discount
+     * @param $isPercent
+     * @param $promoCode
+     * @param $request
+     * @return mixed
+     */
     public function createLead(
         $name,
         $normalizedPhone,
@@ -41,18 +212,19 @@ class Base
             "OPENED" => "Y",
             "PHONE" => array(array("VALUE" => $normalizedPhone, "VALUE_TYPE" => "WORK")),
         );
+
         if (isset($email))
             $userParameters["EMAIL"] = array(array("VALUE" => $email, "VALUE_TYPE" => "WORK"));
         if (isset($systranid))
             $userParameters["UF_CRM_1547493000073"] = $systranid;
         if (isset($amount)) {
             if ((bool)$isPercent) {
-                $d_amount = $amount * $discount;
+                $dAmount = $amount * $discount;
             } else {
-                $d_amount = $amount - $discount;
-                $d_amount = max(0, $d_amount);
+                $dAmount = $amount - $discount;
+                $dAmount = max(0, $dAmount);
             }
-            $userParameters["UF_CRM_1547492931256"] = $d_amount;
+            $userParameters["UF_CRM_1547492931256"] = $dAmount;
         }
         if (isset($request["type"]))
             $userParameters["UF_CRM_TYPE"] = $request["type"];
@@ -74,12 +246,12 @@ class Base
             $userParameters["UF_CRM_1547493000073"] = $request["payment"]["systranid"];
         if (isset($request["payment"]["products"][0]["amount"])) {
             if ((bool)$isPercent) {
-                $d_amount = $request["payment"]["products"][0]["amount"] * $discount;
+                $dAmount = $request["payment"]["products"][0]["amount"] * $discount;
             } else {
-                $d_amount = $request["payment"]["products"][0]["amount"] - $discount;
-                $d_amount = max(0, $d_amount);
+                $dAmount = $request["payment"]["products"][0]["amount"] - $discount;
+                $dAmount = max(0, $dAmount);
             }
-            $userParameters["UF_CRM_1547492931256"] = $d_amount;
+            $userParameters["UF_CRM_1547492931256"] = $dAmount;
         }
         if (isset($request["Height"]))
             $userParameters["UF_CRM_5B16C0A186F1B"] = $request["Height"];
@@ -89,14 +261,12 @@ class Base
             $userParameters["UF_CRM_5B16C0A21AB47"] = $request["Age"];
         if (isset($request["rtype"]))
             $userParameters["UF_CRM_1553250302"] = $request["rtype"];
-        if (isset($request['IDWEB'])) {
+        if (isset($request['IDWEB']))
             $userParameters['IDWEB'] = $request['IDWEB'];
-        }
         if (isset($promoCode))
             $userParameters["UF_CRM_1559231074"] = $promoCode;
-        if (isset($request['IDWEB'])) {
+        if (isset($request['IDWEB']))
             $userParameters['UF_CRM_1567072808032'] = $request['IDWEB'];
-        }
 
         $parameters = http_build_query(array(
             'fields' => $userParameters,

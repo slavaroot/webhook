@@ -1,5 +1,7 @@
 <?php
-include('Base.php');
+require __DIR__ . '/Base.php';
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
 
 /**
  * Web hook is receiver data from outside, processing and sending it to Bitrix24
@@ -46,6 +48,32 @@ class WebHook extends Base
     private $discount;
 
     /**
+     * Logger component of notice information
+     * Source is https://github.com/Seldaek/monolog
+     * @var array of Logger
+     */
+    public $loggerInfo;
+
+    /**
+     * Logger component of errors
+     * Source is https://github.com/Seldaek/monolog
+     * @var array of Logger
+     */
+    public $loggerErrors;
+
+    /**
+     * WebHook constructor.
+     * Create logger object
+     */
+    public function __construct(){
+        $this->loggerInfo = new Logger('info');
+        $this->loggerInfo->pushHandler(new StreamHandler('webhook_logs/info.log', Logger::INFO));
+
+        $this->loggerErrors = new Logger('errors');
+        $this->loggerErrors->pushHandler(new StreamHandler('webhook_logs/errors.log', Logger::DEBUG));
+    }
+
+    /**
      * Base function for processing data and logical actions
      */
     public function processing(){
@@ -54,7 +82,7 @@ class WebHook extends Base
             /**
              * Processing data for update lead
              */
-            $this->processingUpdateLead();
+            $this->processingOfUpdateLead();
         } else if (isset($request["pay"])) {
             /**
              * Processing request for pushing lead
@@ -89,6 +117,10 @@ class WebHook extends Base
      */
     public function findAndSavePromo(){
         $promoList = $this->findPromoByName($this->promoCode);
+        $this->loggerInfo->info('Result of searching promo by name', [
+            'response' => json_encode($promoList),
+            'promocode' => $this->promoCode
+        ]);
         $rPromoCode = $promoList->result[0]->NAME;
         $rPercent = (array)$promoList->result[0]->PROPERTY_158;
         $rPercent = array_shift($rPercent);
@@ -122,17 +154,33 @@ class WebHook extends Base
             $this->isPercent = True;
             $this->discount = 1;
         }
+        $this->loggerInfo->info('Result of calculating discount', [
+            'discount' => $this->discount,
+            'promocode' => $this->promoCode,
+            'isPercent' => $this->isPercent
+        ]);
     }
 
     /**
      * First scenario of logic
      */
-    public function processingUpdateLead(){
+    public function processingOfUpdateLead(){
         $request = $_POST;
         $phone = $request["tel"];
         $name = $request["Name"];
         $email = $request["Email"];
+
+        $this->loggerInfo->info('Attempt to update lead', [
+            'phone' => $phone,
+            'name' => $name,
+            'email' => $email,
+            'request' => $request
+        ]);
+
         $normalizedPhone = $this->normalizePhoneNumber($phone);
+        $this->loggerInfo->info('Result of normalize phone', [
+            'normalizedPhone' => $normalizedPhone,
+        ]);
 
         /**
          * Processing of promo code
@@ -158,6 +206,10 @@ class WebHook extends Base
             $json = $this->findLeadByEmail($email);
         }
 
+        $this->loggerInfo->info('Result of searching by phone and email', [
+            'json' => $json,
+        ]);
+
         /**
          * Update or create new lead
          */
@@ -181,6 +233,16 @@ class WebHook extends Base
                 $request
             );
 
+            $this->loggerInfo->info('Result of creation lead (scenario 2, updating lead)', [
+                'json' => $json,
+                'systranid' => $systranid,
+                'amount' => $amount,
+                'discount' => $this->discount,
+                'isPercent' => $this->isPercent,
+                'promocode' => $this->promoCode,
+                'request' => $request
+            ]);
+
             $this->startTrigger("target=LEAD_" . $json->result . "&code=oncpa");
             $this->startBusinessProcess($json->result);
         } else {
@@ -191,6 +253,13 @@ class WebHook extends Base
                 $this->promoCode,
                 $request
             );
+
+            $this->loggerInfo->info('Result of update lead (scenario 2, updating lead)', [
+                'json' => $json,
+                'discount' => $this->discount,
+                'promocode' => $this->promoCode,
+                'request' => $request
+            ]);
 
             $this->startBusinessProcess($json->result[0]->ID);
             $this->startTrigger("target=LEAD_" . $json->result[0]->ID . "&code=oncpa");
@@ -207,6 +276,14 @@ class WebHook extends Base
         $tranId = $request["payment"]["systranid"];
         $newAmount = $request["payment"]["products"][0]["amount"];
         $pay = $request["pay"];
+
+        $this->loggerInfo->info('Processing of payment', [
+            'request' => $request,
+            'dealId' => $dealId,
+            'tranId' => $tranId,
+            'newAmount' => $newAmount,
+            'pay' => $pay
+        ]);
 
         if ($this->findDealByTransactionId($tranId)) {
             return;
@@ -228,11 +305,22 @@ class WebHook extends Base
 
         $deal = $this->getDealByID($dealId);
 
+        $this->loggerInfo->info('Result of getting deal', [
+            'deal' => $deal,
+            'dealId' => $dealId,
+        ]);
+
         $productName = $request["payment"]["products"][0]["name"];
         $assigner = $deal->result->ASSIGNED_BY_ID;
         $prolongation = $request["payment"]["products"][0]["options"][0]["variant"];
 
         $result = $this->updateDeal($deal, $dAmount, $request);
+
+        $this->loggerInfo->info('Result of updating deal', [
+            'deal' => $deal,
+            'dAmount' => $dAmount,
+            'result' => $result
+        ]);
 
         if ($pay == "partial") {
             print $this->startTrigger("target=DEAL_" . $dealId . "&code=5utbM");
@@ -266,22 +354,31 @@ class WebHook extends Base
 
     /**
      * Third scenario of logic
-     * Creation lead 
+     * Creation lead
      */
     public function processingOfCreationLead(){
         $request = $_POST;
         if (!isset($request["Phone"]) || !isset($request["Name"])) {
             print "Error: wrong parameters";
+
         } else {
             $phone = $request["Phone"];
             $name = $request["Name"];
             $email = $request["Email"];
 
+            $this->loggerInfo->info('Attempt to create lead', [
+                'phone' => $phone,
+                'name' => $name,
+                'email' => $email,
+            ]);
+
             $normalizedPhone = $this->normalizePhoneNumber($phone);
             if (empty($normalizedPhone) && empty($email)) {
                 return;
             }
-
+            $this->loggerInfo->info('Searching by phone', [
+                'normalizedPhone' => $normalizedPhone,
+            ]);
             /**
              * Checking contact by phone and email
              */
@@ -308,7 +405,11 @@ class WebHook extends Base
                     $this->startTrigger("target=LEAD_$leadID&code=dCyTf");
                 }
             }
+            $this->loggerInfo->info('Lead found, response from bitrix ', [
+                'response' => json_encode($json),
+            ]);
             if (!empty($json->total)) {
+                $this->loggerInfo->info('Lead found');
                 /**
                  * If message exist - send it to Bitrix
                  */
@@ -323,10 +424,15 @@ class WebHook extends Base
                     $leadID,
                     $assignedByID
                 );
+                $this->loggerInfo->info('Result of writing to lead\'s feed', [
+                    'response' => json_encode($result),
+                ]);
 
                 $result = $this->postToChat($assignedByID, "Повторное заполнение формы: \"$formname\", лид [url=https://a-nevski.bitrix24.ru/crm/lead/details/$leadID/]$leadName" . "[/url]");
                 print $result;
-
+                $this->loggerInfo->info('Result of posting to chat', [
+                    'response' => json_encode($result),
+                ]);
 
                 $result = $this->updateLeadForRepeat(
                     $normalizedPhone,
@@ -334,11 +440,14 @@ class WebHook extends Base
                     $request
                 );
                 print $result;
+                $this->loggerInfo->info('Result of updating lead (double lead)', [
+                    'response' => json_encode($result),
+                ]);
 
                 $this->startBusinessProcess($leadID);
             } else {
                 /**
-                 * If lead is not exist - to create lead
+                 * If lead is not exists - to create lead
                  */
                 $result = $this->createLead(
                     $name,
@@ -352,9 +461,16 @@ class WebHook extends Base
                     $request
                 );
                 print $result;
-
+                $this->loggerInfo->info('Result of creation lead', [
+                    'response' => json_encode($result),
+                ]);
                 if (isset($result->result)) {
                     $this->startBusinessProcess($result->result);
+                } else {
+                    $this->loggerErrors->error('Error of creation lead', [
+                        'response' => json_encode($result),
+                        'request' => $request
+                    ]);
                 }
             }
         }

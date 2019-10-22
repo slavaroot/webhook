@@ -234,7 +234,7 @@ class WebHook extends Base
             );
 
             $this->loggerInfo->info('Result of creation lead (scenario 2, updating lead)', [
-                'json' => $json,
+                'json' => json_encode($json),
                 'systranid' => $systranid,
                 'amount' => $amount,
                 'discount' => $this->discount,
@@ -255,7 +255,7 @@ class WebHook extends Base
             );
 
             $this->loggerInfo->info('Result of update lead (scenario 2, updating lead)', [
-                'json' => $json,
+                'json' => json_encode($json),
                 'discount' => $this->discount,
                 'promocode' => $this->promoCode,
                 'request' => $request
@@ -306,7 +306,7 @@ class WebHook extends Base
         $deal = $this->getDealByID($dealId);
 
         $this->loggerInfo->info('Result of getting deal', [
-            'deal' => $deal,
+            'deal' => json_encode($deal),
             'dealId' => $dealId,
         ]);
 
@@ -317,9 +317,9 @@ class WebHook extends Base
         $result = $this->updateDeal($deal, $dAmount, $request);
 
         $this->loggerInfo->info('Result of updating deal', [
-            'deal' => $deal,
+            'deal' => json_encode($deal),
             'dAmount' => $dAmount,
-            'result' => $result
+            'result' => json_encode($result)
         ]);
 
         if ($pay == "partial") {

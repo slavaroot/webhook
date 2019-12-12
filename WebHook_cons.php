@@ -6,6 +6,7 @@ use Monolog\Handler\StreamHandler;
 /**
  * Web hook is receiver data from outside, processing and sending it to Bitrix24
  */
+ if (!class_exists('WebHook')) {
 class WebHook extends Base
 {
 
@@ -345,20 +346,20 @@ class WebHook extends Base
         ]);
 
         if ($pay == "partial") {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=5utbM");
+            $result = $this->startTrigger("target=DEAL_" . $dealId . "&code=5utbM");
         } elseif ($pay == 'full') {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=HpWIx");
+            $result = $this->startTrigger("target=DEAL_" . $dealId . "&code=HpWIx");
         } elseif ($pay == 'prolongation') {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=ZKX6s");
+            $result = $this->startTrigger("target=DEAL_" . $dealId . "&code=ZKX6s");
         } elseif ($pay == 'credit') {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=ePvAO");
+            $result = $this->startTrigger("target=DEAL_" . $dealId . "&code=ePvAO");
         } elseif ($pay == 'consult') {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=e1hwc");
+            $result = $this->startTrigger("target=DEAL_" . $dealId . "&code=e1hwc");
         }
 
 
         if ($pay == 'prolongation')
-            print $this->writeDealComment(
+            $result = $this->writeDealComment(
                 "Произведён платёж",
                 "Произведен платеж на сумму " . $newAmount . " за " . $productName .
                 ". Продолжительность пролонгации " . $prolongation . ". Номер транзакции " . $tranId . " от " .
@@ -367,7 +368,7 @@ class WebHook extends Base
                 $assigner
             );
         else
-            print $this->writeDealComment(
+            $result = $this->writeDealComment(
                 "Произведён платёж",
                 "Произведен платеж на сумму " . $newAmount . " за " . $productName .
                 ". Номер транзакции " . $tranId . " от " . date("d.m.Y"),
@@ -505,4 +506,5 @@ class WebHook extends Base
             }
         }
     }
+ }
 }

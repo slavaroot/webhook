@@ -144,13 +144,14 @@ class Base
     public function updateLead(
         $result,
         $discount,
+		$is_percent,
         $email,
         $promoCode,
         $request
     ){
         $amount = $request["payment"]["products"][0]["amount"];
 
-        if ((bool)$promoCode) {
+        if ((bool)$is_percent) {
             $dAmount = $amount * $discount;
         } else {
             $dAmount = $amount - $discount;
@@ -161,13 +162,12 @@ class Base
             "UF_CRM_1547493000073" => $request["payment"]["systranid"],
             "UF_CRM_1547492931256" => $dAmount,
         );
-
+        if (isset($promoCode) && !empty($promoCode))
+			$userParameters["UF_CRM_1559231074"] = $promoCode;
         if (isset($request["rtype"]))
             $userParameters["UF_CRM_1553250302"] = $request["rtype"];
         if (isset($request['IDWEB']))
             $userParameters["UF_CRM_5D67B01D77970"] = $request["IDWEB"];
-        if (isset($this->promoCode))
-            $userParameters["UF_CRM_1559231074"] = $this->promoCode;
         if (!empty($normalizedPhone) && !empty($email)) {
             $userParameters["EMAIL"] = array(array("VALUE" => $email, "VALUE_TYPE" => "WORK"));
         }

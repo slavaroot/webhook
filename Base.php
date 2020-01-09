@@ -145,7 +145,7 @@ class Base
     public function updateLead(
         $result,
         $discount,
-		$is_percent,
+	$is_percent,
         $email,
         $promoCode,
         $request

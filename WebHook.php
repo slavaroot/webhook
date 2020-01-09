@@ -253,6 +253,7 @@ class WebHook extends Base
             $this->updateLead(
                 $json,
                 $this->discount,
+                $this->isPercent,
                 $email,
                 $this->promoCode,
                 $request

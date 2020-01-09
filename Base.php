@@ -136,6 +136,7 @@ class Base
      * Update lead in Bitrix24
      * @param $result
      * @param $discount
+     * @param $is_percent
      * @param $email
      * @param $promoCode
      * @param $request
@@ -149,6 +150,7 @@ class Base
         $promoCode,
         $request
     ){
+
         $amount = $request["payment"]["products"][0]["amount"];
 
         if ((bool)$is_percent) {
@@ -162,7 +164,8 @@ class Base
             "UF_CRM_1547493000073" => $request["payment"]["systranid"],
             "UF_CRM_1547492931256" => $dAmount,
         );
-        if (isset($promoCode) && !empty($promoCode))
+
+		if (!empty($promoCode))
 			$userParameters["UF_CRM_1559231074"] = $promoCode;
         if (isset($request["rtype"]))
             $userParameters["UF_CRM_1553250302"] = $request["rtype"];

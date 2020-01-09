@@ -78,17 +78,21 @@ class WebHook extends Base
      */
     public function processing(){
         $request = $_POST;
+
         if (isset($request["tel"])) {
+
             /**
              * Processing data for update lead
              */
             $this->processingOfUpdateLead();
         } else if (isset($request["pay"])) {
+
             /**
              * Processing request for pushing lead
              */
             $this->processingOfPayment();
         } else {
+
             /**
              * Processing request for creating lead
              */
@@ -101,26 +105,31 @@ class WebHook extends Base
      * @param $request
      */
     public function promoCodeProcessing($request){
+
         if (isset($request["payment"]["promocode"])) {
             $this->promoCode = $request["payment"]["promocode"];
+            $this->isPercent = False;
             $this->discount = $request["payment"]["discountvalue"];
             $this->findAndSavePromo();
         } else {
             $this->promoCode = NULL;
             $this->isPercent = True;
             $this->discount = 1;
-        };
+        }
     }
-    
+
     /**
      * Calculating discount by the promo code and save it in variable
      */
     public function findAndSavePromo(){
-        $promoList = $this->findPromoByName($this->promoCode);
-        $this->loggerInfo->info('Result of searching promo by name', [
-            'response' => json_encode($promoList),
+
+		$promoList = $this->findPromoByName($this->promoCode);
+
+		$this->loggerInfo->info('Result of searching promo by name', [
+            'response' => $promoList,
             'promocode' => $this->promoCode
         ]);
+
         $rPromoCode = $promoList->result[0]->NAME;
         $rPercent = (array)$promoList->result[0]->PROPERTY_158;
         $rPercent = array_shift($rPercent);
@@ -130,10 +139,10 @@ class WebHook extends Base
         } else {
             $rPercent = false;
         }
-        
+
         $r_discount = (array)$promoList->result[0]->PROPERTY_160;
         $r_discount = (int)(array_shift($r_discount));
-        
+
         $matches = null;
         $this->isPercent = preg_match(
             '/([0-9]{1,2}|100)%/',
@@ -142,8 +151,8 @@ class WebHook extends Base
             PREG_OFFSET_CAPTURE,
             0
         );
-        
-        if (($rPromoCode == $this->promoCode) && ($this->isPercent == $rPercent) && ($r_discount == intval($this->discount))) {
+
+        if (($rPromoCode == $this->promoCode) && ((bool)$this->isPercent === (bool)$rPercent) && ($r_discount == intval($this->discount))) {
             if ((bool)$this->isPercent) {
                 $this->discount = 1 - intval($this->discount) / 100;
             } else {
@@ -165,6 +174,7 @@ class WebHook extends Base
      * First scenario of logic
      */
     public function processingOfUpdateLead(){
+
         $request = $_POST;
         $phone = $request["tel"];
         $name = $request["Name"];
@@ -239,7 +249,7 @@ class WebHook extends Base
                 'amount' => $amount,
                 'discount' => $this->discount,
                 'isPercent' => $this->isPercent,
-                'promocode' => $this->promoCode,
+                'promoCode' => $this->promoCode,
                 'request' => $request
             ]);
 
@@ -253,7 +263,7 @@ class WebHook extends Base
             $this->updateLead(
                 $json,
                 $this->discount,
-                $this->isPercent,
+				$this->isPercent,
                 $email,
                 $this->promoCode,
                 $request
@@ -262,7 +272,8 @@ class WebHook extends Base
             $this->loggerInfo->info('Result of update lead (scenario 2, updating lead)', [
                 'json' => json_encode($json),
                 'discount' => $this->discount,
-                'promocode' => $this->promoCode,
+                'isPercent' => $this->isPercent,
+                'promoCode' => $this->promoCode,
                 'request' => $request
             ]);
 
@@ -281,9 +292,10 @@ class WebHook extends Base
      * Second scenario of logic
      * Processing of payment
      */
-    public function processingOfPayment(){
-        $request = $_POST;
-        $dealId = $request["deal_id"];
+    public function processingOfPayment() {
+
+		$request = $_POST;
+		$dealId = $request["deal_id"];
         $tranId = $request["payment"]["systranid"];
         $newAmount = $request["payment"]["products"][0]["amount"];
         $pay = $request["pay"];
@@ -381,6 +393,7 @@ class WebHook extends Base
      */
     public function processingOfCreationLead(){
         $request = $_POST;
+
         if (!isset($request["Phone"]) || !isset($request["Name"])) {
             print "Error: wrong parameters";
         } else {

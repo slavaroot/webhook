@@ -1,5 +1,6 @@
 <?php
 
+
 /**
  * Base class contains api methods for Bitrix24 and other common functions
  */
@@ -22,6 +23,8 @@ class Base
      * @var int
      */
     protected $businessProcessId;
+
+
 
     /**
      * Updating contact in Bitrix24
@@ -49,13 +52,16 @@ class Base
      * @param $deal
      * @param $dAmount
      * @param $request
+     * @param $promocode
      * @return mixed
      */
     public function updateDeal(
         $deal,
         $dAmount,
-        $request
+        $request,
+		$promocode = null
     ){
+
         $oldAmount = $deal->result->UF_CRM_1529156721;
         $dealId = $request["deal_id"];
         $tranId = $request["payment"]["systranid"];
@@ -71,7 +77,7 @@ class Base
             'params' => array("REGISTER_SONET_EVENT" => "Y"),
         );
 
-        if (isset($promocode)) {
+        if (isset($promocode) && !empty($promocode)) {
             $data['fields']['UF_CRM_5CEFFABAC23ED'] = $promocode;
         }
         if ($pay == 'prolongation') {
@@ -84,7 +90,7 @@ class Base
             } else {
                 $data['fields']['UF_CRM_1527763052'] = '';
             }
-        } else if ($pay == 'credit') {
+        } elseif ($pay == 'credit') {
             $data['fields']['UF_CRM_1560926337'] = $request["num"];
             $data['fields']['UF_CRM_1560925916'] = $request["fnum"];
         }
@@ -145,7 +151,7 @@ class Base
     public function updateLead(
         $result,
         $discount,
-	$is_percent,
+		$is_percent,
         $email,
         $promoCode,
         $request
@@ -414,6 +420,7 @@ class Base
      * @return mixed
      */
     public function writeLeadComment($header, $text, $leadId, $assignee){
+
         $parameters = http_build_query(array(
             'fields' => array(
                 "POST_TITLE" => $header,
@@ -426,6 +433,7 @@ class Base
             )
         , 'params' => array("REGISTER_SONET_EVENT" => "Y")
         ));
+
         return $this->sendRequest('crm.livefeedmessage.add.json', $parameters);
     }
 

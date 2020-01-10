@@ -67,10 +67,10 @@ class WebHook extends Base
      */
     public function __construct(){
         $this->loggerInfo = new Logger('info');
-        $this->loggerInfo->pushHandler(new StreamHandler('webhook_logs/info.log', Logger::INFO));
+        $this->loggerInfo->pushHandler(new StreamHandler('webhook_logs/info2.log', Logger::INFO));
 
         $this->loggerErrors = new Logger('errors');
-        $this->loggerErrors->pushHandler(new StreamHandler('webhook_logs/errors.log', Logger::DEBUG));
+        $this->loggerErrors->pushHandler(new StreamHandler('webhook_logs/errors2.log', Logger::DEBUG));
     }
 
     /**
@@ -85,7 +85,7 @@ class WebHook extends Base
              * Processing data for update lead
              */
             $this->processingOfUpdateLead();
-        } else if (isset($request["pay"])) {
+        } elseif (isset($request["pay"])) {
 
             /**
              * Processing request for pushing lead
@@ -338,7 +338,10 @@ class WebHook extends Base
             $dAmount = max(0, $dAmount);
         }
 
+		$this->loggerInfo->info('$dAmount', ['$dAmount' => $dAmount]);
+
         $deal = $this->getDealByID($dealId);
+
 
         $this->loggerInfo->info('Result of getting deal', [
             'deal' => json_encode($deal),
@@ -349,42 +352,105 @@ class WebHook extends Base
         $assigner = $deal->result->ASSIGNED_BY_ID;
         $prolongation = $request["payment"]["products"][0]["options"][0]["variant"];
 
-        $result = $this->updateDeal($deal, $dAmount, $request);
+        $result = $this->updateDeal($deal, $dAmount, $request, $this->promoCode);
 
         $this->loggerInfo->info('Result of updating deal (payment scenario)', [
-            'deal' => json_encode($deal),
-            'dAmount' => $dAmount,
-            'result' => json_encode($result)
+        	'result' => $result,
+            '$pay' => $pay,
         ]);
 
+		/**
+		 * Триггеры
+		 * Запрос такого типа двигает стадии сделки. Они должны выполняться после заполнения полей сделки (ВАЖНО!)
+		 */
+
         if ($pay == "partial") {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=5utbM");
+			/**
+			 * перевод сделки в стадию "Забронировано" при оплате брони
+			 */
+			$this->loggerInfo->info('partial', ['$dealId' => $dealId]);
+			$trigger = $this->startTrigger("target=DEAL_" . $dealId . "&code=5utbM");
+			if ($trigger->result) {
+				$this->loggerInfo->info('Success trigger "partial"', [
+					'$trigger' => $trigger
+				]);
+			} else {
+				$this->loggerInfo->info('Error trigger "partial"', [
+					'$trigger' => $trigger
+				]);
+			}
+//            print $this->startTrigger("target=DEAL_" . $dealId . "&code=5utbM");
         } elseif ($pay == 'full') {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=HpWIx");
+			/**
+			 * перевод сделки по основному курсу в стадию "Оплатил полностью"
+			 */
+        	$this->loggerInfo->info('full', ['$dealId' => $dealId]);
+			$trigger = $this->startTrigger("target=DEAL_" . $dealId . "&code=HpWIx");
+			if ($trigger->result) {
+				$this->loggerInfo->info('Success trigger "full"', [
+					'$trigger' => $trigger
+				]);
+			} else {
+				$this->loggerInfo->info('Error trigger "full"', [
+					'$trigger' => $trigger
+				]);
+			}
+//				print $this->startTrigger("target=DEAL_" . $dealId . "&code=HpWIx");
+
         } elseif ($pay == 'prolongation') {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=ZKX6s");
+			/**
+			 * перевод сделки по пролонгации в стадию "Продлила"
+			 */
+			$this->loggerInfo->info('prolongation', ['$dealId' => $dealId]);
+			$trigger = $this->startTrigger("target=DEAL_" . $dealId . "&code=ZKX6s");
+			if ($trigger->result) {
+				$this->loggerInfo->info('Success trigger "prolongation"', [
+					'$trigger' => $trigger
+				]);
+			} else {
+				$this->loggerInfo->info('Error trigger "prolongation"', [
+					'$trigger' => $trigger
+				]);
+			}
+//            print $this->startTrigger("target=DEAL_" . $dealId . "&code=ZKX6s");
         } elseif ($pay == 'credit') {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=ePvAO");
+			/**
+			 * перевод сделки "Рассрочка платежа" при внесении очередного платежа
+			 */
+			$this->loggerInfo->info('credit', ['$dealId' => $dealId]);
+			$trigger = $this->startTrigger("target=DEAL_" . $dealId . "&code=ePvAO");
+			if ($trigger->result) {
+				$this->loggerInfo->info('Success trigger "credit"', [
+					'$trigger' => $trigger
+				]);
+			} else {
+				$this->loggerInfo->info('Error trigger "credit"', [
+					'$trigger' => $trigger
+				]);
+			}
         }
 
+        if ($pay == 'prolongation') {
+			$this->loggerInfo->info('Writing comment (prolongation)');
+			print $this->writeDealComment(
+				"Произведён платёж",
+				"Произведен платеж на сумму " . $dAmount . " за " . $productName .
+				". Продолжительность пролонгации " . $prolongation . ". Номер транзакции " . $tranId . " от " .
+				date("d.m.Y"),
+				$dealId,
+				$assigner
+			);
+		} else {
+			$this->loggerInfo->info('Writing comment (not prolongation)');
+			print $this->writeDealComment(
+				"Произведён платёж",
+				"Произведен платеж на сумму " . $dAmount . " за " . $productName .
+				". Номер транзакции " . $tranId . " от " . date("d.m.Y"),
+				$dealId,
+				$assigner
+			);
+		}
 
-        if ($pay == 'prolongation')
-            print $this->writeDealComment(
-                "Произведён платёж",
-                "Произведен платеж на сумму " . $newAmount . " за " . $productName .
-                ". Продолжительность пролонгации " . $prolongation . ". Номер транзакции " . $tranId . " от " .
-                date("d.m.Y"),
-                $dealId,
-                $assigner
-            );
-        else
-            print $this->writeDealComment(
-                "Произведён платёж",
-                "Произведен платеж на сумму " . $newAmount . " за " . $productName .
-                ". Номер транзакции " . $tranId . " от " . date("d.m.Y"),
-                $dealId,
-                $assigner
-            );
     }
 
     /**
@@ -414,6 +480,7 @@ class WebHook extends Base
             $this->loggerInfo->info('Searching by phone', [
                 'normalizedPhone' => $normalizedPhone,
             ]);
+
             /**
              * Checking contact by phone and email
              */
@@ -483,6 +550,9 @@ class WebHook extends Base
                     'leadId' => $leadID
                 ]);
             } else {
+
+				$this->loggerInfo->info('Lead not found. Creating lead');
+
                 /**
                  * If lead is not exists - to create lead
                  */
@@ -505,12 +575,12 @@ class WebHook extends Base
                     $leadId = $result->result;
                     $result = $this->startBusinessProcess($result->result);
                     $this->loggerInfo->info('Result of starting BP (scenario 3, create lead)', [
-                        'result' => json_encode($result),
+                        'result' => $result,
                         'leadId' => $leadId
                     ]);
                 } else {
                     $this->loggerErrors->error('Error of creation lead', [
-                        'response' => json_encode($result),
+                        'response' => $result,
                         'request' => $request
                     ]);
                 }

@@ -1,5 +1,6 @@
 <?php
 
+
 /**
  * Base class contains api methods for Bitrix24 and other common functions
  */
@@ -22,6 +23,8 @@ class Base
      * @var int
      */
     protected $businessProcessId;
+
+
 
     /**
      * Updating contact in Bitrix24
@@ -49,13 +52,16 @@ class Base
      * @param $deal
      * @param $dAmount
      * @param $request
+     * @param $promocode
      * @return mixed
      */
     public function updateDeal(
         $deal,
         $dAmount,
-        $request
+        $request,
+		$promocode = null
     ){
+
         $oldAmount = $deal->result->UF_CRM_1529156721;
         $dealId = $request["deal_id"];
         $tranId = $request["payment"]["systranid"];
@@ -71,7 +77,7 @@ class Base
             'params' => array("REGISTER_SONET_EVENT" => "Y"),
         );
 
-        if (isset($promocode)) {
+        if (isset($promocode) && !empty($promocode)) {
             $data['fields']['UF_CRM_5CEFFABAC23ED'] = $promocode;
         }
         if ($pay == 'prolongation') {
@@ -84,7 +90,7 @@ class Base
             } else {
                 $data['fields']['UF_CRM_1527763052'] = '';
             }
-        } else if ($pay == 'credit') {
+        } elseif ($pay == 'credit') {
             $data['fields']['UF_CRM_1560926337'] = $request["num"];
             $data['fields']['UF_CRM_1560925916'] = $request["fnum"];
         }
@@ -136,6 +142,7 @@ class Base
      * Update lead in Bitrix24
      * @param $result
      * @param $discount
+     * @param $is_percent
      * @param $email
      * @param $promoCode
      * @param $request
@@ -144,13 +151,15 @@ class Base
     public function updateLead(
         $result,
         $discount,
+		$is_percent,
         $email,
         $promoCode,
         $request
     ){
+
         $amount = $request["payment"]["products"][0]["amount"];
 
-        if ((bool)$promoCode) {
+        if ((bool)$is_percent) {
             $dAmount = $amount * $discount;
         } else {
             $dAmount = $amount - $discount;
@@ -162,12 +171,12 @@ class Base
             "UF_CRM_1547492931256" => $dAmount,
         );
 
+		if (!empty($promoCode))
+			$userParameters["UF_CRM_1559231074"] = $promoCode;
         if (isset($request["rtype"]))
             $userParameters["UF_CRM_1553250302"] = $request["rtype"];
         if (isset($request['IDWEB']))
             $userParameters["UF_CRM_5D67B01D77970"] = $request["IDWEB"];
-        if (isset($this->promoCode))
-            $userParameters["UF_CRM_1559231074"] = $this->promoCode;
         if (!empty($normalizedPhone) && !empty($email)) {
             $userParameters["EMAIL"] = array(array("VALUE" => $email, "VALUE_TYPE" => "WORK"));
         }
@@ -411,6 +420,7 @@ class Base
      * @return mixed
      */
     public function writeLeadComment($header, $text, $leadId, $assignee){
+
         $parameters = http_build_query(array(
             'fields' => array(
                 "POST_TITLE" => $header,
@@ -423,6 +433,7 @@ class Base
             )
         , 'params' => array("REGISTER_SONET_EVENT" => "Y")
         ));
+
         return $this->sendRequest('crm.livefeedmessage.add.json', $parameters);
     }
 

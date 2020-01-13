@@ -67,10 +67,10 @@ class WebHook extends Base
      */
     public function __construct(){
         $this->loggerInfo = new Logger('info');
-        $this->loggerInfo->pushHandler(new StreamHandler('webhook_logs/info.log', Logger::INFO));
+        $this->loggerInfo->pushHandler(new StreamHandler('webhook_logs/info2.log', Logger::INFO));
 
         $this->loggerErrors = new Logger('errors');
-        $this->loggerErrors->pushHandler(new StreamHandler('webhook_logs/errors.log', Logger::DEBUG));
+        $this->loggerErrors->pushHandler(new StreamHandler('webhook_logs/errors2.log', Logger::DEBUG));
     }
 
     /**
@@ -78,17 +78,21 @@ class WebHook extends Base
      */
     public function processing(){
         $request = $_POST;
+
         if (isset($request["tel"])) {
+
             /**
              * Processing data for update lead
              */
             $this->processingOfUpdateLead();
-        } else if (isset($request["pay"])) {
+        } elseif (isset($request["pay"])) {
+
             /**
              * Processing request for pushing lead
              */
             $this->processingOfPayment();
         } else {
+
             /**
              * Processing request for creating lead
              */
@@ -101,26 +105,31 @@ class WebHook extends Base
      * @param $request
      */
     public function promoCodeProcessing($request){
+
         if (isset($request["payment"]["promocode"])) {
             $this->promoCode = $request["payment"]["promocode"];
+            $this->isPercent = False;
             $this->discount = $request["payment"]["discountvalue"];
             $this->findAndSavePromo();
         } else {
             $this->promoCode = NULL;
             $this->isPercent = True;
             $this->discount = 1;
-        };
+        }
     }
-    
+
     /**
      * Calculating discount by the promo code and save it in variable
      */
     public function findAndSavePromo(){
-        $promoList = $this->findPromoByName($this->promoCode);
-        $this->loggerInfo->info('Result of searching promo by name', [
-            'response' => json_encode($promoList),
+
+		$promoList = $this->findPromoByName($this->promoCode);
+
+		$this->loggerInfo->info('Result of searching promo by name', [
+            'response' => $promoList,
             'promocode' => $this->promoCode
         ]);
+
         $rPromoCode = $promoList->result[0]->NAME;
         $rPercent = (array)$promoList->result[0]->PROPERTY_158;
         $rPercent = array_shift($rPercent);
@@ -130,10 +139,10 @@ class WebHook extends Base
         } else {
             $rPercent = false;
         }
-        
+
         $r_discount = (array)$promoList->result[0]->PROPERTY_160;
         $r_discount = (int)(array_shift($r_discount));
-        
+
         $matches = null;
         $this->isPercent = preg_match(
             '/([0-9]{1,2}|100)%/',
@@ -142,8 +151,8 @@ class WebHook extends Base
             PREG_OFFSET_CAPTURE,
             0
         );
-        
-        if (($rPromoCode == $this->promoCode) && ($this->isPercent == $rPercent) && ($r_discount == intval($this->discount))) {
+
+        if (($rPromoCode == $this->promoCode) && ((bool)$this->isPercent === (bool)$rPercent) && ($r_discount == intval($this->discount))) {
             if ((bool)$this->isPercent) {
                 $this->discount = 1 - intval($this->discount) / 100;
             } else {
@@ -165,6 +174,7 @@ class WebHook extends Base
      * First scenario of logic
      */
     public function processingOfUpdateLead(){
+
         $request = $_POST;
         $phone = $request["tel"];
         $name = $request["Name"];
@@ -239,7 +249,7 @@ class WebHook extends Base
                 'amount' => $amount,
                 'discount' => $this->discount,
                 'isPercent' => $this->isPercent,
-                'promocode' => $this->promoCode,
+                'promoCode' => $this->promoCode,
                 'request' => $request
             ]);
 
@@ -253,6 +263,7 @@ class WebHook extends Base
             $this->updateLead(
                 $json,
                 $this->discount,
+				$this->isPercent,
                 $email,
                 $this->promoCode,
                 $request
@@ -261,7 +272,8 @@ class WebHook extends Base
             $this->loggerInfo->info('Result of update lead (scenario 2, updating lead)', [
                 'json' => json_encode($json),
                 'discount' => $this->discount,
-                'promocode' => $this->promoCode,
+                'isPercent' => $this->isPercent,
+                'promoCode' => $this->promoCode,
                 'request' => $request
             ]);
 
@@ -280,9 +292,10 @@ class WebHook extends Base
      * Second scenario of logic
      * Processing of payment
      */
-    public function processingOfPayment(){
-        $request = $_POST;
-        $dealId = $request["deal_id"];
+    public function processingOfPayment() {
+
+		$request = $_POST;
+		$dealId = $request["deal_id"];
         $tranId = $request["payment"]["systranid"];
         $newAmount = $request["payment"]["products"][0]["amount"];
         $pay = $request["pay"];
@@ -325,7 +338,10 @@ class WebHook extends Base
             $dAmount = max(0, $dAmount);
         }
 
+		$this->loggerInfo->info('$dAmount', ['$dAmount' => $dAmount]);
+
         $deal = $this->getDealByID($dealId);
+
 
         $this->loggerInfo->info('Result of getting deal', [
             'deal' => json_encode($deal),
@@ -336,42 +352,105 @@ class WebHook extends Base
         $assigner = $deal->result->ASSIGNED_BY_ID;
         $prolongation = $request["payment"]["products"][0]["options"][0]["variant"];
 
-        $result = $this->updateDeal($deal, $dAmount, $request);
+        $result = $this->updateDeal($deal, $dAmount, $request, $this->promoCode);
 
         $this->loggerInfo->info('Result of updating deal (payment scenario)', [
-            'deal' => json_encode($deal),
-            'dAmount' => $dAmount,
-            'result' => json_encode($result)
+        	'result' => $result,
+            '$pay' => $pay,
         ]);
 
+		/**
+		 * Триггеры
+		 * Запрос такого типа двигает стадии сделки. Они должны выполняться после заполнения полей сделки (ВАЖНО!)
+		 */
+
         if ($pay == "partial") {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=5utbM");
+			/**
+			 * перевод сделки в стадию "Забронировано" при оплате брони
+			 */
+			$this->loggerInfo->info('partial', ['$dealId' => $dealId]);
+			$trigger = $this->startTrigger("target=DEAL_" . $dealId . "&code=5utbM");
+			if ($trigger->result) {
+				$this->loggerInfo->info('Success trigger "partial"', [
+					'$trigger' => $trigger
+				]);
+			} else {
+				$this->loggerInfo->info('Error trigger "partial"', [
+					'$trigger' => $trigger
+				]);
+			}
+//            print $this->startTrigger("target=DEAL_" . $dealId . "&code=5utbM");
         } elseif ($pay == 'full') {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=HpWIx");
+			/**
+			 * перевод сделки по основному курсу в стадию "Оплатил полностью"
+			 */
+        	$this->loggerInfo->info('full', ['$dealId' => $dealId]);
+			$trigger = $this->startTrigger("target=DEAL_" . $dealId . "&code=HpWIx");
+			if ($trigger->result) {
+				$this->loggerInfo->info('Success trigger "full"', [
+					'$trigger' => $trigger
+				]);
+			} else {
+				$this->loggerInfo->info('Error trigger "full"', [
+					'$trigger' => $trigger
+				]);
+			}
+//				print $this->startTrigger("target=DEAL_" . $dealId . "&code=HpWIx");
+
         } elseif ($pay == 'prolongation') {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=ZKX6s");
+			/**
+			 * перевод сделки по пролонгации в стадию "Продлила"
+			 */
+			$this->loggerInfo->info('prolongation', ['$dealId' => $dealId]);
+			$trigger = $this->startTrigger("target=DEAL_" . $dealId . "&code=ZKX6s");
+			if ($trigger->result) {
+				$this->loggerInfo->info('Success trigger "prolongation"', [
+					'$trigger' => $trigger
+				]);
+			} else {
+				$this->loggerInfo->info('Error trigger "prolongation"', [
+					'$trigger' => $trigger
+				]);
+			}
+//            print $this->startTrigger("target=DEAL_" . $dealId . "&code=ZKX6s");
         } elseif ($pay == 'credit') {
-            print $this->startTrigger("target=DEAL_" . $dealId . "&code=ePvAO");
+			/**
+			 * перевод сделки "Рассрочка платежа" при внесении очередного платежа
+			 */
+			$this->loggerInfo->info('credit', ['$dealId' => $dealId]);
+			$trigger = $this->startTrigger("target=DEAL_" . $dealId . "&code=ePvAO");
+			if ($trigger->result) {
+				$this->loggerInfo->info('Success trigger "credit"', [
+					'$trigger' => $trigger
+				]);
+			} else {
+				$this->loggerInfo->info('Error trigger "credit"', [
+					'$trigger' => $trigger
+				]);
+			}
         }
 
+        if ($pay == 'prolongation') {
+			$this->loggerInfo->info('Writing comment (prolongation)');
+			print $this->writeDealComment(
+				"Произведён платёж",
+				"Произведен платеж на сумму " . $dAmount . " за " . $productName .
+				". Продолжительность пролонгации " . $prolongation . ". Номер транзакции " . $tranId . " от " .
+				date("d.m.Y"),
+				$dealId,
+				$assigner
+			);
+		} else {
+			$this->loggerInfo->info('Writing comment (not prolongation)');
+			print $this->writeDealComment(
+				"Произведён платёж",
+				"Произведен платеж на сумму " . $dAmount . " за " . $productName .
+				". Номер транзакции " . $tranId . " от " . date("d.m.Y"),
+				$dealId,
+				$assigner
+			);
+		}
 
-        if ($pay == 'prolongation')
-            print $this->writeDealComment(
-                "Произведён платёж",
-                "Произведен платеж на сумму " . $newAmount . " за " . $productName .
-                ". Продолжительность пролонгации " . $prolongation . ". Номер транзакции " . $tranId . " от " .
-                date("d.m.Y"),
-                $dealId,
-                $assigner
-            );
-        else
-            print $this->writeDealComment(
-                "Произведён платёж",
-                "Произведен платеж на сумму " . $newAmount . " за " . $productName .
-                ". Номер транзакции " . $tranId . " от " . date("d.m.Y"),
-                $dealId,
-                $assigner
-            );
     }
 
     /**
@@ -380,6 +459,7 @@ class WebHook extends Base
      */
     public function processingOfCreationLead(){
         $request = $_POST;
+
         if (!isset($request["Phone"]) || !isset($request["Name"])) {
             print "Error: wrong parameters";
         } else {
@@ -400,6 +480,7 @@ class WebHook extends Base
             $this->loggerInfo->info('Searching by phone', [
                 'normalizedPhone' => $normalizedPhone,
             ]);
+
             /**
              * Checking contact by phone and email
              */
@@ -469,6 +550,9 @@ class WebHook extends Base
                     'leadId' => $leadID
                 ]);
             } else {
+
+				$this->loggerInfo->info('Lead not found. Creating lead');
+
                 /**
                  * If lead is not exists - to create lead
                  */
@@ -491,12 +575,12 @@ class WebHook extends Base
                     $leadId = $result->result;
                     $result = $this->startBusinessProcess($result->result);
                     $this->loggerInfo->info('Result of starting BP (scenario 3, create lead)', [
-                        'result' => json_encode($result),
+                        'result' => $result,
                         'leadId' => $leadId
                     ]);
                 } else {
                     $this->loggerErrors->error('Error of creation lead', [
-                        'response' => json_encode($result),
+                        'response' => $result,
                         'request' => $request
                     ]);
                 }
